@@ -1,3 +1,3 @@
 # projetalto
 
-DELDALLE Pierre
+COUSIN Bastien
