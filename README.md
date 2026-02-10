@@ -1,3 +1,4 @@
 # projetalto
 
-DEQUIDT Clément 
+COUSIN Bastien
+DELDALLE Pierre test
