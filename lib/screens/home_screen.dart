@@ -1,28 +1,53 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../widgets/common/FooterWidget.dart';
 
-void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: EmptyPage(),
-    );
-  }
+  State<HomeScreen> createState() => _State();
 }
 
-class EmptyPage extends StatelessWidget {
-  const EmptyPage({super.key});
-
+class _State extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: SizedBox.expand(), // Page totalement vide
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Texte de Bienvenue
+            Text(
+              'Bienvenue sur',
+              style: TextStyle(
+                fontFamily: 'PoliceGras',
+                fontSize: 32,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 50),
+            //Image du logo
+            Image.asset(
+              'assets/images/logoComplet.png',
+              width: 200,
+            ),
+          ],
+        ),
+      ),
+      //Footer
+      bottomNavigationBar: FooterWidget(
+        onQrCode: () {
+          GoRouter.of(context).go('/init_pairing');
+        },
+        onScanner: () {
+          GoRouter.of(context).go('/scan_paring');
+        },
+        onChat: () {
+          GoRouter.of(context).go('/relation');
+        },
+      ),
     );
   }
 }
