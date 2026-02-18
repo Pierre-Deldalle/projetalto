@@ -18,7 +18,7 @@ class FooterWidget extends StatelessWidget {
       height: 90,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-          color: Colors.black,
+        color: Colors.black,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -26,12 +26,11 @@ class FooterWidget extends StatelessWidget {
             offset: const Offset(0, -3),
             blurRadius: 6,
           )
-        ]
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          // QR Code
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -49,8 +48,6 @@ class FooterWidget extends StatelessWidget {
               ),
             ],
           ),
-
-          // Scanner
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -68,15 +65,12 @@ class FooterWidget extends StatelessWidget {
               ),
             ],
           ),
-
-          // Chat
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
                 onPressed: onChat,
-                icon: const Icon(
-                    Icons.chat_bubble_outline, color: Colors.white),
+                icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
               ),
               const Text(
                 'Discuter',
