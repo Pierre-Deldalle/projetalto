@@ -19,71 +19,62 @@ class FooterWidget extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: Colors.black,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.lightBlue.withOpacity(0.5),
             offset: const Offset(0, -3),
             blurRadius: 6,
-          )
+          ),
         ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                onPressed: onQrCode,
-                icon: const Icon(Icons.qr_code_2, color: Colors.white),
-              ),
-              const Text(
-                'Générer',
-                style: TextStyle(
-                  fontFamily: 'PoliceGras',
-                  fontSize: 12,
-                  color: Colors.white,
-                ),
-              ),
-            ],
+          _buildItem(
+            icon: Icons.qr_code_2,
+            label: 'Générer',
+            onTap: onQrCode,
           ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                onPressed: onScanner,
-                icon: const Icon(Icons.qr_code_scanner, color: Colors.white),
-              ),
-              const Text(
-                'Scanner',
-                style: TextStyle(
-                  fontFamily: 'PoliceGras',
-                  fontSize: 12,
-                  color: Colors.white,
-                ),
-              ),
-            ],
+          _buildItem(
+            icon: Icons.qr_code_scanner,
+            label: 'Scanner',
+            onTap: onScanner,
           ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                onPressed: onChat,
-                icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
-              ),
-              const Text(
-                'Discuter',
-                style: TextStyle(
-                  fontFamily: 'PoliceGras',
-                  fontSize: 12,
-                  color: Colors.white,
-                ),
-              ),
-            ],
+          _buildItem(
+            icon: Icons.chat_bubble_outline,
+            label: 'Discuter',
+            onTap: onChat,
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildItem({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          onPressed: onTap,
+          icon: Icon(icon, color: Colors.white),
+        ),
+        Text(
+          label,
+          style: const TextStyle(
+            fontFamily: 'PoliceGras',
+            fontSize: 12,
+            color: Colors.white,
+          ),
+        ),
+      ],
     );
   }
 }
