@@ -5,6 +5,7 @@ import 'package:projetalto/screens/init_pairing_screen.dart';
 import 'package:projetalto/screens/relation_screen.dart';
 import 'package:projetalto/screens/scan_pairing_screen.dart';
 import 'package:projetalto/widgets/common/FooterWidget.dart';
+import 'package:projetalto/widgets/common/HomeFloatingButton.dart';
 
 void main() {
   runApp(const MyApp());
@@ -24,31 +25,8 @@ final GoRouter _router = GoRouter(
               child,
 
               if (!isHome)
-                Positioned(
-                  bottom: 20,
-                  right: 20,
-                  child: GestureDetector(
-                    onTap: () => context.go('/'),
-                    child: Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.lightBlue,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.lightBlue.withOpacity(0.6),
-                            blurRadius: 12,
-                          )
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.home,
-                        color: Colors.white,
-                        size: 30,
-                      ),
-                    ),
-                  ),
+                HomeFloatingButton(
+                  onPressed: () => context.go('/'),
                 ),
             ],
           ),
@@ -89,6 +67,11 @@ class MyApp extends StatelessWidget {
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       routerConfig: _router,
+      theme: ThemeData(
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: Colors.black,
+        useMaterial3: true,
+      ),
     );
   }
 }
