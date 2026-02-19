@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class FooterWidget extends StatelessWidget {
   final VoidCallback onQrCode;
@@ -19,14 +20,14 @@ class FooterWidget extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
           color: Colors.black,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.lightBlue.withOpacity(0.5),
-            offset: const Offset(0, -3),
-            blurRadius: 6,
-          )
-        ]
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.lightBlue.withOpacity(0.5),
+              offset: const Offset(0, -3),
+              blurRadius: 6,
+            )
+          ]
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -36,7 +37,9 @@ class FooterWidget extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                onPressed: onQrCode,
+                onPressed: () {
+                  context.go('/init_pairing');
+                },
                 icon: const Icon(Icons.qr_code_2, color: Colors.white),
               ),
               const Text(

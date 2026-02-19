@@ -7,6 +7,7 @@ class PrimaryButton extends StatelessWidget {
   final double height;
   final String text;
   final VoidCallback? onPressed;
+  // final double borderRadius;
 
   const PrimaryButton({
     super.key,
@@ -16,6 +17,7 @@ class PrimaryButton extends StatelessWidget {
     required this.height,
     required this.text,
     this.onPressed,
+    // required this.borderRadius,
   });
 
   @override
@@ -30,6 +32,7 @@ class PrimaryButton extends StatelessWidget {
         minimumSize: Size(width, height),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(height/2)),
+        // shape: RoundedRectangleBorder(borderRadius),
       ),
       child: Text(text),
     );

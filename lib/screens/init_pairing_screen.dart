@@ -11,10 +11,11 @@ class InitPairingScreen extends StatefulWidget {
   @override
   State<InitPairingScreen> createState() => _InitPairingScreenState();
 }
+
 class _InitPairingScreenState extends State<InitPairingScreen> {
   final PairingService _pairingService = PairingService();
   String? relationCode;
-  bool showQr = false; // ← nouveau booléen
+  bool showQr = false;
 
   @override
   void initState() {
@@ -33,54 +34,68 @@ class _InitPairingScreenState extends State<InitPairingScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              "Scanne ce QR code",
-              style: TextStyle(
-                fontFamily: 'PoliceNormale',
-                fontSize: 32,
-                color: Colors.white,
+      body: Column(
+        children: [
+          // Contenu principal
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    "Scanne ce QR code",
+                    style: TextStyle(
+                      fontFamily: 'PoliceNormale',
+                      fontSize: 32,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  if (showQr)
+                    Container(
+                      decoration: BoxDecoration(
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.white.withOpacity(0.1),
+                            offset: const Offset(0, 3),
+                            blurRadius: 3,
+                          ),
+                        ],
+                      ),
+                      child: QrImageView(
+                        data: relationCode!,
+                        size: 250,
+                        foregroundColor: Colors.lightBlue,
+                      ),
+                    ),
+                ],
               ),
             ),
-            const SizedBox(height: 20),
+          ),
 
-            // ← Ici on affiche soit le bouton, soit le QR code
-            if (!showQr)
-              PrimaryButton(
-                width: 200,
-                height: 50,
-                text: "Afficher le QR code",
+          // Bouton au-dessus du footer (aligné à droite)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10, right: 20),
+            child: Align(
+              alignment: Alignment.bottomRight,
+              child: PrimaryButton(
+                width: 75,
+                height: 75,
+                text: "QR",
                 backgroundColor: Colors.lightBlue,
                 foregroundColor: Colors.white,
                 onPressed: () {
                   setState(() {
-                    showQr = true; // affiche le QR
+                    showQr = true;
                   });
                 },
-              )
-            else
-              Container(
-                decoration: BoxDecoration(
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.white.withOpacity(0.1),
-                      offset: const Offset(0, 3),
-                      blurRadius: 3,
-                    ),
-                  ],
-                ),
-                child: QrImageView(
-                  data: relationCode!,
-                  size: 250,
-                  foregroundColor: Colors.lightBlue,
-                ),
               ),
-          ],
-        ),
+            ),
+          ),
+        ],
       ),
+
       bottomNavigationBar: FooterWidget(
         onQrCode: () {
           GoRouter.of(context).go('/init_pairing');

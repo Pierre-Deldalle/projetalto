@@ -37,17 +37,7 @@ class _State extends State<HomeScreen> {
         ),
       ),
       //Footer
-      bottomNavigationBar: FooterWidget(
-        onQrCode: () {
-          GoRouter.of(context).go('/init_pairing');
-        },
-        onScanner: () {
-          GoRouter.of(context).go('/scan_paring');
-        },
-        onChat: () {
-          GoRouter.of(context).go('/relation');
-        },
-      ),
+      bottomNavigationBar: FooterWidget(),
     );
   }
 }
