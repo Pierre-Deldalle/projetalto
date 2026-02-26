@@ -11,7 +11,7 @@ class HomeFloatingButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      bottom: 110,
+      bottom: 20,
       right: 20,
       child: GestureDetector(
         onTap: onPressed,

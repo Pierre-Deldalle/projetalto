@@ -1,38 +1,60 @@
-import 'dart:math';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:uuid/uuid.dart';
 
 class PairingService {
-  static final PairingService _instance = PairingService._internal();
-
-  factory PairingService() {
-    return _instance;
-  }
-
-  PairingService._internal();
-
-  String? _currentRelationCode;
+  final String baseUrl = 'https://alto.samyn.ovh';
+  final String userPublicKey = 'pk_alice_xyz';
 
   String generateRelationCode() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    final random = Random();
+    return const Uuid().v4();
+  }
 
-    final code = String.fromCharCodes(
-      Iterable.generate(
-        8,
-            (_) => chars.codeUnitAt(random.nextInt(chars.length)),
-      ),
+  Future<void> initPairing(String relationCode) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/pairing'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'relationCode': relationCode,
+        'userPublicKey': userPublicKey,
+      }),
     );
 
-    _currentRelationCode = code;
-    return code;
+    if (response.statusCode != 200) {
+      throw Exception('Erreur init pairing: ${response.statusCode}');
+    }
   }
 
-  String? get currentRelationCode => _currentRelationCode;
+  Future<String> checkPairingStatus(String code) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/pairing/$code/status'),
+    );
 
-  bool validateRelationCode(String scannedCode) {
-    return scannedCode == _currentRelationCode;
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['status'];
+    } else {
+      throw Exception('Erreur serveur: ${response.statusCode}');
+    }
   }
 
-  void clearRelation() {
-    _currentRelationCode = null;
+  Future<void> completePairing({
+    required String relationCodeA,
+    required String relationCodeB,
+    required String publicKeyB,
+  }) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/pairing'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'relationCodeA': relationCodeA,
+        'relationCodeB': relationCodeB,
+        'publicKeyB': publicKeyB,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Erreur complete pairing: ${response.statusCode}');
+    }
   }
 }
