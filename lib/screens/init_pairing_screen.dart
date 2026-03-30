@@ -94,7 +94,7 @@ class _InitPairingScreenState extends State<InitPairingScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Pairing réussi !'),
+        title: const Text('Connexion réussie !'),
         content: const Text('Vos appareils sont maintenant connectés.'),
         actions: [
           TextButton(

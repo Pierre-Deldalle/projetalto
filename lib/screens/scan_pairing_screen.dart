@@ -41,7 +41,7 @@ class _ScanPairingScreenState extends State<ScanPairingScreen> {
         context: context,
         barrierDismissible: false,
         builder: (_) => AlertDialog(
-          title: const Text("Pairing réussi"),
+          title: const Text("Connexion réussie !"),
           content: const Text("Les appareils sont maintenant connectés."),
           actions: [
             TextButton(
@@ -65,7 +65,7 @@ class _ScanPairingScreenState extends State<ScanPairingScreen> {
         context: context,
         builder: (_) => AlertDialog(
           title: const Text("Erreur"),
-          content: Text("Échec du pairing : $e"),
+          content: Text("Échec de la connexion : $e"),
           actions: [
             TextButton(
               onPressed: () {
