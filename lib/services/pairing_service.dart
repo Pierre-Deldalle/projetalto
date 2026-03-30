@@ -8,6 +8,7 @@ class PairingService {
   final String userPublicKey = 'pk_alice_xyz';
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
   static const String _lastRelationKey = 'last_relation_code';
+  static const String _deviceIdKey = 'local_device_id';
 
   String generateRelationCode() {
     return const Uuid().v4();
@@ -71,5 +72,85 @@ class PairingService {
 
   Future<void> clearLastRelationCode() async {
     await _storage.delete(key: _lastRelationKey);
+  }
+
+  Future<String> getOrCreateDeviceId() async {
+    final existing = await _storage.read(key: _deviceIdKey);
+    if (existing != null && existing.isNotEmpty) {
+      return existing;
+    }
+
+    final generated = const Uuid().v4();
+    await _storage.write(key: _deviceIdKey, value: generated);
+    return generated;
+  }
+
+  Future<List<Map<String, dynamic>>> fetchDiscussionMessages(
+    String relationCode,
+  ) async {
+    final first = await http.get(
+      Uri.parse('$baseUrl/chat/$relationCode/messages'),
+    );
+
+    if (first.statusCode == 200) {
+      return _parseMessagesPayload(first.body);
+    }
+
+    final fallback = await http.get(
+      Uri.parse('$baseUrl/messages/$relationCode'),
+    );
+
+    if (fallback.statusCode == 200) {
+      return _parseMessagesPayload(fallback.body);
+    }
+
+    throw Exception(
+      'Erreur chargement messages: ${first.statusCode}/${fallback.statusCode}',
+    );
+  }
+
+  Future<void> sendDiscussionMessage({
+    required String relationCode,
+    required String senderId,
+    required String content,
+    required String type,
+  }) async {
+    final payload = jsonEncode({
+      'relationCode': relationCode,
+      'senderId': senderId,
+      'content': content,
+      'type': type,
+      'sentAt': DateTime.now().toUtc().toIso8601String(),
+    });
+
+    final first = await http.post(
+      Uri.parse('$baseUrl/chat/$relationCode/messages'),
+      headers: {'Content-Type': 'application/json'},
+      body: payload,
+    );
+
+    if (first.statusCode == 200 || first.statusCode == 201) {
+      return;
+    }
+
+    final fallback = await http.post(
+      Uri.parse('$baseUrl/messages/$relationCode'),
+      headers: {'Content-Type': 'application/json'},
+      body: payload,
+    );
+
+    if (fallback.statusCode != 200 && fallback.statusCode != 201) {
+      throw Exception(
+        'Erreur envoi message: ${first.statusCode}/${fallback.statusCode}',
+      );
+    }
+  }
+
+  List<Map<String, dynamic>> _parseMessagesPayload(String body) {
+    final decoded = jsonDecode(body);
+    final List<dynamic> rawList =
+        decoded is List ? decoded : (decoded['messages'] as List<dynamic>? ?? []);
+
+    return rawList.whereType<Map<String, dynamic>>().toList();
   }
 }

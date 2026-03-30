@@ -9,12 +9,14 @@ class ChatMessage {
   final MessageType type;
   final DateTime sentAt;
   final bool isMine;
+  final String senderId;
 
   const ChatMessage({
     required this.content,
     required this.type,
     required this.sentAt,
     required this.isMine,
+    required this.senderId,
   });
 }
 
@@ -35,23 +37,10 @@ class _RelationScreenState extends State<RelationScreen> {
   late Timer _refreshTimer;
   MessageType _selectedType = MessageType.texte;
   String? _activeRelationCode;
+  String? _localDeviceId;
   bool _isLoadingRelation = true;
-  final List<ChatMessage> _messages = <ChatMessage>[
-    ChatMessage(
-      content: 'Salut, la liaison est active.',
-      type: MessageType.texte,
-      sentAt: DateTime.now().subtract(const Duration(minutes: 2)),
-      isMine: false,
-    ),
-    ChatMessage(
-      content: 'Top, on peut discuter ici.',
-      type: MessageType.texte,
-      sentAt: DateTime.now().subtract(const Duration(minutes: 1)),
-      isMine: true,
-    ),
-  ];
-
-  int _mockRemoteCounter = 0;
+  bool _isSending = false;
+  final List<ChatMessage> _messages = <ChatMessage>[];
 
   @override
   void initState() {
@@ -63,14 +52,19 @@ class _RelationScreenState extends State<RelationScreen> {
   }
 
   Future<void> _initializeRelation() async {
+    final deviceId = await _pairingService.getOrCreateDeviceId();
+    if (!mounted) return;
+
     final fromRoute = widget.initialRelationCode;
     if (fromRoute != null && fromRoute.isNotEmpty) {
       await _pairingService.saveLastRelationCode(fromRoute);
       if (!mounted) return;
       setState(() {
         _activeRelationCode = fromRoute;
+        _localDeviceId = deviceId;
         _isLoadingRelation = false;
       });
+      await _refreshMessages();
       return;
     }
 
@@ -78,8 +72,13 @@ class _RelationScreenState extends State<RelationScreen> {
     if (!mounted) return;
     setState(() {
       _activeRelationCode = savedRelation;
+      _localDeviceId = deviceId;
       _isLoadingRelation = false;
     });
+
+    if (savedRelation != null && savedRelation.isNotEmpty) {
+      await _refreshMessages();
+    }
   }
 
   @override
@@ -90,29 +89,51 @@ class _RelationScreenState extends State<RelationScreen> {
     super.dispose();
   }
 
-  void _refreshMessages() {
+  Future<void> _refreshMessages() async {
     if (!mounted) return;
     if (_activeRelationCode == null || _activeRelationCode!.isEmpty) return;
 
-    // Simulation d'un message distant a chaque cycle pair.
-    if (_mockRemoteCounter % 2 == 0) {
-      setState(() {
-        _messages.add(
-          ChatMessage(
-            content: 'Message recu automatiquement (${_mockRemoteCounter ~/ 2 + 1})',
-            type: MessageType.texte,
-            sentAt: DateTime.now(),
-            isMine: false,
-          ),
+    try {
+      final rawMessages = await _pairingService.fetchDiscussionMessages(
+        _activeRelationCode!,
+      );
+      if (!mounted) return;
+
+      final localId = _localDeviceId ?? '';
+      final mapped = rawMessages.map((raw) {
+        final senderId =
+            (raw['senderId'] ?? raw['deviceId'] ?? raw['userId'] ?? '')
+                .toString();
+        final content = (raw['content'] ?? raw['message'] ?? raw['text'] ?? '')
+            .toString();
+        final rawType = (raw['type'] ?? 'texte').toString();
+        final rawDate =
+            (raw['sentAt'] ?? raw['timestamp'] ?? raw['createdAt'])?.toString();
+
+        return ChatMessage(
+          content: content,
+          type: _messageTypeFromString(rawType),
+          sentAt: rawDate == null
+              ? DateTime.now()
+              : DateTime.tryParse(rawDate)?.toLocal() ?? DateTime.now(),
+          isMine: senderId == localId,
+          senderId: senderId,
         );
+      }).toList()
+        ..sort((a, b) => a.sentAt.compareTo(b.sentAt));
+
+      setState(() {
+        _messages
+          ..clear()
+          ..addAll(mapped);
       });
       _scrollToBottom();
+    } catch (_) {
+      // On ignore les erreurs de sync periodique pour ne pas bloquer l'UI.
     }
-
-    _mockRemoteCounter++;
   }
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
     if (_activeRelationCode == null || _activeRelationCode!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Aucune discussion active. Lance une liaison.')),
@@ -120,22 +141,36 @@ class _RelationScreenState extends State<RelationScreen> {
       return;
     }
 
+    if (_localDeviceId == null || _localDeviceId!.isEmpty) return;
+
     final content = _messageController.text.trim();
     if (content.isEmpty) return;
 
     setState(() {
-      _messages.add(
-        ChatMessage(
-          content: content,
-          type: _selectedType,
-          sentAt: DateTime.now(),
-          isMine: true,
-        ),
-      );
+      _isSending = true;
     });
 
-    _messageController.clear();
-    _scrollToBottom();
+    try {
+      await _pairingService.sendDiscussionMessage(
+        relationCode: _activeRelationCode!,
+        senderId: _localDeviceId!,
+        content: content,
+        type: _messageTypeToApi(_selectedType),
+      );
+
+      _messageController.clear();
+      await _refreshMessages();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Echec de l envoi: $e')),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _isSending = false;
+      });
+    }
   }
 
   void _scrollToBottom() {
@@ -178,6 +213,33 @@ class _RelationScreenState extends State<RelationScreen> {
         return 'Audio';
       case MessageType.fichier:
         return 'Fichier';
+    }
+  }
+
+  MessageType _messageTypeFromString(String value) {
+    switch (value.toLowerCase()) {
+      case 'image':
+        return MessageType.image;
+      case 'audio':
+        return MessageType.audio;
+      case 'fichier':
+      case 'file':
+        return MessageType.fichier;
+      default:
+        return MessageType.texte;
+    }
+  }
+
+  String _messageTypeToApi(MessageType type) {
+    switch (type) {
+      case MessageType.texte:
+        return 'texte';
+      case MessageType.image:
+        return 'image';
+      case MessageType.audio:
+        return 'audio';
+      case MessageType.fichier:
+        return 'fichier';
     }
   }
 
@@ -326,8 +388,14 @@ class _RelationScreenState extends State<RelationScreen> {
                 ),
                 const SizedBox(width: 8),
                 IconButton(
-                  onPressed: _sendMessage,
-                  icon: const Icon(Icons.send, color: Colors.lightBlue),
+                  onPressed: _isSending ? null : _sendMessage,
+                  icon: _isSending
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.send, color: Colors.lightBlue),
                 ),
               ],
             ),
