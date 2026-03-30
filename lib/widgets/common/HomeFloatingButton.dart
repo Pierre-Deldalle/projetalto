@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 
+// Classe du bouton Home
 class HomeFloatingButton extends StatelessWidget {
+  // Attributs
   final VoidCallback onPressed;
 
   const HomeFloatingButton({
+    // Paramètres
     super.key,
     required this.onPressed,
   });
 
   @override
   Widget build(BuildContext context) {
+    // Création du HomeFloatingButton
     return Positioned(
       bottom: 20,
       right: 20,
