@@ -97,7 +97,7 @@ class _InitPairingScreenState extends State<InitPairingScreen> {
 
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Connexion réussie !'),
         content: const Text('Vos appareils sont maintenant connectés.'),
         actions: [
@@ -105,7 +105,7 @@ class _InitPairingScreenState extends State<InitPairingScreen> {
             onPressed: () async {
               await _pairingService.saveLastRelationCode(currentRelationCode);
               if (!mounted) return;
-              Navigator.of(context).pop();
+              Navigator.of(dialogContext).pop();
               context.go(
                 '/relation?relationCode=${Uri.encodeComponent(currentRelationCode)}',
               );

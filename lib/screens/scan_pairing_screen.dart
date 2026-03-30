@@ -43,13 +43,14 @@ class _ScanPairingScreenState extends State<ScanPairingScreen> {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (_) => AlertDialog(
+        builder: (dialogContext) => AlertDialog(
           title: const Text("Connexion réussie !"),
           content: const Text("Les appareils sont maintenant connectés."),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.of(dialogContext).pop();
+                if (!mounted) return;
                 context.go(
                   '/relation?relationCode=${Uri.encodeComponent(relationCodeA)}',
                 );
