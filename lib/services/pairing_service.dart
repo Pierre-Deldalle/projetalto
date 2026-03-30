@@ -5,7 +5,6 @@ import 'package:uuid/uuid.dart';
 
 class PairingService {
   final String baseUrl = 'https://alto.samyn.ovh';
-  final String userPublicKey = 'pk_alice_xyz';
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
   static const String _lastRelationKey = 'last_relation_code';
   static const String _deviceIdKey = 'local_device_id';
@@ -15,12 +14,14 @@ class PairingService {
   }
 
   Future<void> initPairing(String relationCode) async {
+    final deviceId = await getOrCreateDeviceId();
+
     final response = await http.post(
       Uri.parse('$baseUrl/pairing'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'relationCode': relationCode,
-        'userPublicKey': userPublicKey,
+        'userPublicKey': deviceId,
       }),
     );
 

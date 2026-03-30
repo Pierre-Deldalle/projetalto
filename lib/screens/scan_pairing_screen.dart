@@ -27,8 +27,10 @@ class _ScanPairingScreenState extends State<ScanPairingScreen> {
       controller.stop();
 
       final relationCodeB = _pairingService.generateRelationCode();
-      final publicKeyB =
-          "publicKey_dummy_${DateTime.now().millisecondsSinceEpoch}";
+      final publicKeyB = await _pairingService.getOrCreateDeviceId();
+
+      // Initialise aussi le code local du scanner avant de completer la liaison.
+      await _pairingService.initPairing(relationCodeB);
 
       await _pairingService.completePairing(
         relationCodeA: relationCodeA,
