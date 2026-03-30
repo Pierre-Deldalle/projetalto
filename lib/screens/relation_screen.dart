@@ -162,8 +162,9 @@ class _RelationScreenState extends State<RelationScreen> {
       await _refreshMessages();
     } catch (e) {
       if (!mounted) return;
+      final message = e.toString().replaceFirst('Exception: ', '');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Echec de l envoi: $e')),
+        SnackBar(content: Text('Echec de l envoi: $message')),
       );
     } finally {
       if (!mounted) return;

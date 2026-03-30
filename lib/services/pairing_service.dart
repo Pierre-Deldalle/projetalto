@@ -104,6 +104,12 @@ class PairingService {
       return _parseMessagesPayload(fallback.body);
     }
 
+    if (first.statusCode == 404 && fallback.statusCode == 404) {
+      throw Exception(
+        'API discussion indisponible sur le serveur (endpoints chat non trouves).',
+      );
+    }
+
     throw Exception(
       'Erreur chargement messages: ${first.statusCode}/${fallback.statusCode}',
     );
@@ -140,6 +146,12 @@ class PairingService {
     );
 
     if (fallback.statusCode != 200 && fallback.statusCode != 201) {
+      if (first.statusCode == 404 && fallback.statusCode == 404) {
+        throw Exception(
+          'API discussion indisponible sur le serveur (endpoints chat non trouves).',
+        );
+      }
+
       throw Exception(
         'Erreur envoi message: ${first.statusCode}/${fallback.statusCode}',
       );
