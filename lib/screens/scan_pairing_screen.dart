@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/pairing_service.dart';
@@ -39,6 +40,21 @@ class _ScanPairingScreenState extends State<ScanPairingScreen> {
       );
 
       await _pairingService.saveLastRelationCode(relationCodeA);
+      await _pairingService.saveDiscussionContext(
+        localRelationCode: relationCodeB,
+        remoteRelationCode: relationCodeA,
+      );
+
+      // Donne a l'appareil initiateur le code de retour a utiliser pour nous envoyer.
+      await _pairingService.sendDiscussionMessage(
+        relationCode: relationCodeA,
+        senderId: publicKeyB,
+        type: 'CHANNEL',
+        content: jsonEncode({
+          'replyCode': relationCodeB,
+          'senderId': publicKeyB,
+        }),
+      );
 
       if (!mounted) return;
 
@@ -54,7 +70,7 @@ class _ScanPairingScreenState extends State<ScanPairingScreen> {
                 Navigator.of(dialogContext).pop();
                 if (!mounted) return;
                 context.go(
-                  '/relation?relationCode=${Uri.encodeComponent(relationCodeA)}',
+                  '/relation?localCode=${Uri.encodeComponent(relationCodeB)}&remoteCode=${Uri.encodeComponent(relationCodeA)}',
                 );
               },
               child: const Text("OK"),

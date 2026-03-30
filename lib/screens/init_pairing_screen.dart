@@ -104,10 +104,14 @@ class _InitPairingScreenState extends State<InitPairingScreen> {
           TextButton(
             onPressed: () async {
               await _pairingService.saveLastRelationCode(currentRelationCode);
+              await _pairingService.saveDiscussionContext(
+                localRelationCode: currentRelationCode,
+                remoteRelationCode: null,
+              );
               if (!mounted) return;
               Navigator.of(dialogContext).pop();
               context.go(
-                '/relation?relationCode=${Uri.encodeComponent(currentRelationCode)}',
+                '/relation?localCode=${Uri.encodeComponent(currentRelationCode)}',
               );
             },
             child: const Text('OK'),

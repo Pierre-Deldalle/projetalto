@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'package:uuid/uuid.dart';
 import '../services/pairing_service.dart';
 
 enum MessageType { texte, image, audio, fichier }
 
 class ChatMessage {
+  final String id;
   final String content;
   final MessageType type;
   final DateTime sentAt;
@@ -13,18 +15,51 @@ class ChatMessage {
   final String senderId;
 
   const ChatMessage({
+    required this.id,
     required this.content,
     required this.type,
     required this.sentAt,
     required this.isMine,
     required this.senderId,
   });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'content': content,
+      'type': type.name,
+      'sentAt': sentAt.toIso8601String(),
+      'isMine': isMine,
+      'senderId': senderId,
+    };
+  }
+
+  factory ChatMessage.fromJson(Map<String, dynamic> json) {
+    final typeName = (json['type'] ?? 'texte').toString();
+    return ChatMessage(
+      id: (json['id'] ?? const Uuid().v4()).toString(),
+      content: (json['content'] ?? '').toString(),
+      type: MessageType.values.firstWhere(
+        (e) => e.name == typeName,
+        orElse: () => MessageType.texte,
+      ),
+      sentAt: DateTime.tryParse((json['sentAt'] ?? '').toString()) ??
+          DateTime.now(),
+      isMine: json['isMine'] == true,
+      senderId: (json['senderId'] ?? '').toString(),
+    );
+  }
 }
 
 class RelationScreen extends StatefulWidget {
-  final String? initialRelationCode;
+  final String? initialLocalRelationCode;
+  final String? initialRemoteRelationCode;
 
-  const RelationScreen({super.key, this.initialRelationCode});
+  const RelationScreen({
+    super.key,
+    this.initialLocalRelationCode,
+    this.initialRemoteRelationCode,
+  });
 
   @override
   State<RelationScreen> createState() => _RelationScreenState();
@@ -37,11 +72,11 @@ class _RelationScreenState extends State<RelationScreen> {
 
   late Timer _refreshTimer;
   MessageType _selectedType = MessageType.texte;
-  String? _activeRelationCode;
+  String? _localRelationCode;
+  String? _remoteRelationCode;
   String? _localDeviceId;
   bool _isLoadingRelation = true;
   bool _isSending = false;
-  DateTime? _lastLocalSendAt;
   final List<ChatMessage> _messages = <ChatMessage>[];
 
   @override
@@ -55,31 +90,39 @@ class _RelationScreenState extends State<RelationScreen> {
 
   Future<void> _initializeRelation() async {
     final deviceId = await _pairingService.getOrCreateDeviceId();
-    if (!mounted) return;
+    String? localCode = widget.initialLocalRelationCode;
+    String? remoteCode = widget.initialRemoteRelationCode;
 
-    final fromRoute = widget.initialRelationCode;
-    if (fromRoute != null && fromRoute.isNotEmpty) {
-      await _pairingService.saveLastRelationCode(fromRoute);
-      if (!mounted) return;
-      setState(() {
-        _activeRelationCode = fromRoute;
-        _localDeviceId = deviceId;
-        _isLoadingRelation = false;
-      });
-      await _refreshMessages();
-      return;
+    if (localCode == null || localCode.isEmpty) {
+      final savedContext = await _pairingService.getDiscussionContext();
+      localCode = savedContext['localRelationCode'];
+      remoteCode = savedContext['remoteRelationCode'];
     }
 
-    final savedRelation = await _pairingService.getLastRelationCode();
+    if (localCode != null && localCode.isNotEmpty) {
+      final history = await _pairingService.getLocalHistory(localCode);
+      _messages
+        ..clear()
+        ..addAll(history.map(ChatMessage.fromJson));
+      _messages.sort((a, b) => a.sentAt.compareTo(b.sentAt));
+
+      await _pairingService.saveLastRelationCode(localCode);
+      await _pairingService.saveDiscussionContext(
+        localRelationCode: localCode,
+        remoteRelationCode: remoteCode,
+      );
+    }
+
     if (!mounted) return;
     setState(() {
-      _activeRelationCode = savedRelation;
+      _localRelationCode = localCode;
+      _remoteRelationCode = remoteCode;
       _localDeviceId = deviceId;
       _isLoadingRelation = false;
     });
 
-    if (savedRelation != null && savedRelation.isNotEmpty) {
-      await _refreshMessages();
+    if (localCode != null && localCode.isNotEmpty) {
+      await _refreshInbox();
     }
   }
 
@@ -92,25 +135,42 @@ class _RelationScreenState extends State<RelationScreen> {
   }
 
   Future<void> _refreshMessages() async {
-    if (!mounted) return;
-    if (_activeRelationCode == null || _activeRelationCode!.isEmpty) return;
+    await _refreshInbox();
+  }
 
-    // Evite de re-consommer son propre message juste apres envoi (API read-once).
-    if (_lastLocalSendAt != null &&
-        DateTime.now().difference(_lastLocalSendAt!).inSeconds < 3) {
-      return;
-    }
+  Future<void> _refreshInbox() async {
+    if (!mounted) return;
+    if (_localRelationCode == null || _localRelationCode!.isEmpty) return;
 
     try {
       final rawElements = await _pairingService.fetchDiscussionMessages(
-        _activeRelationCode!,
+        _localRelationCode!,
       );
       if (!mounted) return;
 
       final localId = _localDeviceId ?? '';
-      final mapped = rawElements.map((raw) {
+      final List<ChatMessage> incoming = [];
+
+      for (final raw in rawElements) {
         final elementKey = (raw['key'] ?? 'MESSAGE').toString();
         final value = (raw['value'] ?? '').toString();
+
+        if (elementKey.toUpperCase() == 'CHANNEL') {
+          final channelData = _parseElementValue(value);
+          final replyCode = (channelData['replyCode'] ?? '').toString();
+          if (replyCode.isNotEmpty && replyCode != _remoteRelationCode) {
+            _remoteRelationCode = replyCode;
+            await _pairingService.saveDiscussionContext(
+              localRelationCode: _localRelationCode!,
+              remoteRelationCode: replyCode,
+            );
+            if (mounted) {
+              setState(() {});
+            }
+          }
+          continue;
+        }
+
         final parsed = _parseElementValue(value);
 
         final senderId = (parsed['senderId'] ?? '').toString();
@@ -121,22 +181,42 @@ class _RelationScreenState extends State<RelationScreen> {
             (parsed['sentAt'] ?? raw['creationDate'] ?? raw['createdAt'])
                 ?.toString();
 
-        return ChatMessage(
+        final messageId = (parsed['messageId'] ??
+                '${raw['creationDate'] ?? rawDate}_${value.hashCode}')
+            .toString();
+
+        final message = ChatMessage(
+          id: messageId,
           content: content,
           type: _messageTypeFromString(rawType),
           sentAt: rawDate == null
               ? DateTime.now()
               : DateTime.tryParse(rawDate)?.toLocal() ?? DateTime.now(),
           isMine: senderId == localId,
-          senderId: senderId,
+          senderId: senderId.isEmpty ? 'unknown' : senderId,
         );
-      }).where((m) => m.senderId != localId && m.content.isNotEmpty).toList()
-        ..sort((a, b) => a.sentAt.compareTo(b.sentAt));
+        if (message.content.isNotEmpty && !_containsMessage(message.id)) {
+          incoming.add(message);
+        }
+      }
 
-      if (mapped.isNotEmpty) {
+      if (incoming.isNotEmpty) {
         setState(() {
-          _messages.addAll(mapped);
+          _messages.addAll(incoming);
+          _messages.sort((a, b) => a.sentAt.compareTo(b.sentAt));
+          for (var i = 0; i < _messages.length; i++) {
+            final m = _messages[i];
+            _messages[i] = ChatMessage(
+              id: m.id,
+              content: m.content,
+              type: m.type,
+              sentAt: m.sentAt,
+              isMine: m.senderId == localId,
+              senderId: m.senderId,
+            );
+          }
         });
+        await _persistLocalHistory();
         _scrollToBottom();
       }
     } catch (_) {
@@ -145,9 +225,16 @@ class _RelationScreenState extends State<RelationScreen> {
   }
 
   Future<void> _sendMessage() async {
-    if (_activeRelationCode == null || _activeRelationCode!.isEmpty) {
+    if (_localRelationCode == null || _localRelationCode!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Aucune discussion active. Lance une liaison.')),
+      );
+      return;
+    }
+
+    if (_remoteRelationCode == null || _remoteRelationCode!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Connexion en cours... attends 2-3 secondes.')),
       );
       return;
     }
@@ -162,7 +249,9 @@ class _RelationScreenState extends State<RelationScreen> {
     });
 
     try {
+      final messageId = const Uuid().v4();
       final payload = jsonEncode({
+        'messageId': messageId,
         'senderId': _localDeviceId!,
         'content': content,
         'type': _messageTypeToApi(_selectedType),
@@ -170,7 +259,7 @@ class _RelationScreenState extends State<RelationScreen> {
       });
 
       await _pairingService.sendDiscussionMessage(
-        relationCode: _activeRelationCode!,
+        relationCode: _remoteRelationCode!,
         senderId: _localDeviceId!,
         content: payload,
         type: _messageKeyForType(_selectedType),
@@ -180,6 +269,7 @@ class _RelationScreenState extends State<RelationScreen> {
       setState(() {
         _messages.add(
           ChatMessage(
+            id: messageId,
             content: content,
             type: _selectedType,
             sentAt: now,
@@ -187,8 +277,8 @@ class _RelationScreenState extends State<RelationScreen> {
             senderId: _localDeviceId!,
           ),
         );
-        _lastLocalSendAt = now;
       });
+      await _persistLocalHistory();
       _messageController.clear();
       _scrollToBottom();
     } catch (e) {
@@ -203,6 +293,18 @@ class _RelationScreenState extends State<RelationScreen> {
         _isSending = false;
       });
     }
+  }
+
+  bool _containsMessage(String id) {
+    return _messages.any((m) => m.id == id);
+  }
+
+  Future<void> _persistLocalHistory() async {
+    if (_localRelationCode == null || _localRelationCode!.isEmpty) return;
+    await _pairingService.saveLocalHistory(
+      _localRelationCode!,
+      _messages.map((m) => m.toJson()).toList(),
+    );
   }
 
   void _scrollToBottom() {
@@ -379,7 +481,7 @@ class _RelationScreenState extends State<RelationScreen> {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Relation: ${_activeRelationCode ?? '-'}',
+                'Local: ${_localRelationCode ?? '-'} | Remote: ${_remoteRelationCode ?? '-'}',
                 style: const TextStyle(color: Colors.white70),
               ),
             ),
@@ -387,7 +489,7 @@ class _RelationScreenState extends State<RelationScreen> {
           Expanded(
             child: _isLoadingRelation
                 ? const Center(child: CircularProgressIndicator())
-                : (_activeRelationCode == null || _activeRelationCode!.isEmpty)
+                : (_localRelationCode == null || _localRelationCode!.isEmpty)
                 ? const Center(
                     child: Text(
                       'Aucune discussion a reprendre. Scanne un appareil pour commencer.',

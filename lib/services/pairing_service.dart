@@ -8,6 +8,8 @@ class PairingService {
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
   static const String _lastRelationKey = 'last_relation_code';
   static const String _deviceIdKey = 'local_device_id';
+  static const String _discussionContextKey = 'last_discussion_context';
+  static const String _historyPrefix = 'discussion_history_';
 
   String generateRelationCode() {
     return const Uuid().v4();
@@ -73,6 +75,66 @@ class PairingService {
 
   Future<void> clearLastRelationCode() async {
     await _storage.delete(key: _lastRelationKey);
+  }
+
+  Future<void> saveDiscussionContext({
+    required String localRelationCode,
+    String? remoteRelationCode,
+  }) async {
+    await _storage.write(
+      key: _discussionContextKey,
+      value: jsonEncode({
+        'localRelationCode': localRelationCode,
+        'remoteRelationCode': remoteRelationCode,
+      }),
+    );
+  }
+
+  Future<Map<String, String?>> getDiscussionContext() async {
+    final raw = await _storage.read(key: _discussionContextKey);
+    if (raw == null || raw.isEmpty) {
+      return {
+        'localRelationCode': await getLastRelationCode(),
+        'remoteRelationCode': null,
+      };
+    }
+
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      return {
+        'localRelationCode': decoded['localRelationCode']?.toString(),
+        'remoteRelationCode': decoded['remoteRelationCode']?.toString(),
+      };
+    } catch (_) {
+      return {
+        'localRelationCode': await getLastRelationCode(),
+        'remoteRelationCode': null,
+      };
+    }
+  }
+
+  Future<void> saveLocalHistory(
+    String localRelationCode,
+    List<Map<String, dynamic>> messages,
+  ) async {
+    await _storage.write(
+      key: '$_historyPrefix$localRelationCode',
+      value: jsonEncode(messages),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getLocalHistory(
+    String localRelationCode,
+  ) async {
+    final raw = await _storage.read(key: '$_historyPrefix$localRelationCode');
+    if (raw == null || raw.isEmpty) return <Map<String, dynamic>>[];
+
+    try {
+      final decoded = jsonDecode(raw) as List<dynamic>;
+      return decoded.whereType<Map<String, dynamic>>().toList();
+    } catch (_) {
+      return <Map<String, dynamic>>[];
+    }
   }
 
   Future<String> getOrCreateDeviceId() async {
