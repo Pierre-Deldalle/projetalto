@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import '../services/pairing_service.dart';
 
 enum MessageType { texte, image, audio, fichier }
 
@@ -18,18 +19,23 @@ class ChatMessage {
 }
 
 class RelationScreen extends StatefulWidget {
-  const RelationScreen({super.key});
+  final String? initialRelationCode;
+
+  const RelationScreen({super.key, this.initialRelationCode});
 
   @override
   State<RelationScreen> createState() => _RelationScreenState();
 }
 
 class _RelationScreenState extends State<RelationScreen> {
+  final PairingService _pairingService = PairingService();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
   late Timer _refreshTimer;
   MessageType _selectedType = MessageType.texte;
+  String? _activeRelationCode;
+  bool _isLoadingRelation = true;
   final List<ChatMessage> _messages = <ChatMessage>[
     ChatMessage(
       content: 'Salut, la liaison est active.',
@@ -50,8 +56,29 @@ class _RelationScreenState extends State<RelationScreen> {
   @override
   void initState() {
     super.initState();
+    _initializeRelation();
     _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       _refreshMessages();
+    });
+  }
+
+  Future<void> _initializeRelation() async {
+    final fromRoute = widget.initialRelationCode;
+    if (fromRoute != null && fromRoute.isNotEmpty) {
+      await _pairingService.saveLastRelationCode(fromRoute);
+      if (!mounted) return;
+      setState(() {
+        _activeRelationCode = fromRoute;
+        _isLoadingRelation = false;
+      });
+      return;
+    }
+
+    final savedRelation = await _pairingService.getLastRelationCode();
+    if (!mounted) return;
+    setState(() {
+      _activeRelationCode = savedRelation;
+      _isLoadingRelation = false;
     });
   }
 
@@ -65,6 +92,7 @@ class _RelationScreenState extends State<RelationScreen> {
 
   void _refreshMessages() {
     if (!mounted) return;
+    if (_activeRelationCode == null || _activeRelationCode!.isEmpty) return;
 
     // Simulation d'un message distant a chaque cycle pair.
     if (_mockRemoteCounter % 2 == 0) {
@@ -85,6 +113,13 @@ class _RelationScreenState extends State<RelationScreen> {
   }
 
   void _sendMessage() {
+    if (_activeRelationCode == null || _activeRelationCode!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Aucune discussion active. Lance une liaison.')),
+      );
+      return;
+    }
+
     final content = _messageController.text.trim();
     if (content.isEmpty) return;
 
@@ -201,8 +236,28 @@ class _RelationScreenState extends State<RelationScreen> {
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Relation: ${_activeRelationCode ?? '-'}',
+                style: const TextStyle(color: Colors.white70),
+              ),
+            ),
+          ),
           Expanded(
-            child: _messages.isEmpty
+            child: _isLoadingRelation
+                ? const Center(child: CircularProgressIndicator())
+                : (_activeRelationCode == null || _activeRelationCode!.isEmpty)
+                ? const Center(
+                    child: Text(
+                      'Aucune discussion a reprendre. Scanne un appareil pour commencer.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                  )
+                : _messages.isEmpty
                 ? const Center(
                     child: Text(
                       'Aucun message',

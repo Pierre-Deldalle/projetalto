@@ -1,10 +1,13 @@
 import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 
 class PairingService {
   final String baseUrl = 'https://alto.samyn.ovh';
   final String userPublicKey = 'pk_alice_xyz';
+  static const FlutterSecureStorage _storage = FlutterSecureStorage();
+  static const String _lastRelationKey = 'last_relation_code';
 
   String generateRelationCode() {
     return const Uuid().v4();
@@ -56,5 +59,17 @@ class PairingService {
     if (response.statusCode != 200) {
       throw Exception('Erreur complete pairing: ${response.statusCode}');
     }
+  }
+
+  Future<void> saveLastRelationCode(String relationCode) async {
+    await _storage.write(key: _lastRelationKey, value: relationCode);
+  }
+
+  Future<String?> getLastRelationCode() async {
+    return _storage.read(key: _lastRelationKey);
+  }
+
+  Future<void> clearLastRelationCode() async {
+    await _storage.delete(key: _lastRelationKey);
   }
 }

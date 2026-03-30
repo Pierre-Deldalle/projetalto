@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../services/pairing_service.dart';
 import '../widgets/common/PrimaryButton.dart';
@@ -91,6 +92,9 @@ class _InitPairingScreenState extends State<InitPairingScreen> {
   }
 
   void _showSuccessDialog() {
+    final currentRelationCode = relationCode;
+    if (currentRelationCode == null) return;
+
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -98,7 +102,14 @@ class _InitPairingScreenState extends State<InitPairingScreen> {
         content: const Text('Vos appareils sont maintenant connectés.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () async {
+              await _pairingService.saveLastRelationCode(currentRelationCode);
+              if (!mounted) return;
+              Navigator.of(context).pop();
+              context.go(
+                '/relation?relationCode=${Uri.encodeComponent(currentRelationCode)}',
+              );
+            },
             child: const Text('OK'),
           ),
         ],

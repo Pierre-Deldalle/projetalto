@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/pairing_service.dart';
 
@@ -35,6 +36,8 @@ class _ScanPairingScreenState extends State<ScanPairingScreen> {
         publicKeyB: publicKeyB,
       );
 
+      await _pairingService.saveLastRelationCode(relationCodeA);
+
       if (!mounted) return;
 
       showDialog(
@@ -47,7 +50,9 @@ class _ScanPairingScreenState extends State<ScanPairingScreen> {
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
-                Navigator.pop(context);
+                context.go(
+                  '/relation?relationCode=${Uri.encodeComponent(relationCodeA)}',
+                );
               },
               child: const Text("OK"),
             )
