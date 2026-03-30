@@ -89,31 +89,15 @@ class PairingService {
   Future<List<Map<String, dynamic>>> fetchDiscussionMessages(
     String relationCode,
   ) async {
-    final first = await http.get(
-      Uri.parse('$baseUrl/chat/$relationCode/messages'),
+    final response = await http.get(
+      Uri.parse('$baseUrl/element?relationCode=${Uri.encodeComponent(relationCode)}'),
     );
 
-    if (first.statusCode == 200) {
-      return _parseMessagesPayload(first.body);
+    if (response.statusCode == 200) {
+      return _parseElementsPayload(response.body);
     }
 
-    final fallback = await http.get(
-      Uri.parse('$baseUrl/messages/$relationCode'),
-    );
-
-    if (fallback.statusCode == 200) {
-      return _parseMessagesPayload(fallback.body);
-    }
-
-    if (first.statusCode == 404 && fallback.statusCode == 404) {
-      throw Exception(
-        'API discussion indisponible sur le serveur (endpoints chat non trouves).',
-      );
-    }
-
-    throw Exception(
-      'Erreur chargement messages: ${first.statusCode}/${fallback.statusCode}',
-    );
+    throw Exception('Erreur chargement messages: ${response.statusCode}');
   }
 
   Future<void> sendDiscussionMessage({
@@ -124,45 +108,28 @@ class PairingService {
   }) async {
     final payload = jsonEncode({
       'relationCode': relationCode,
-      'senderId': senderId,
-      'content': content,
-      'type': type,
-      'sentAt': DateTime.now().toUtc().toIso8601String(),
+      'key': type,
+      'value': content,
     });
 
-    final first = await http.post(
-      Uri.parse('$baseUrl/chat/$relationCode/messages'),
+    final response = await http.post(
+      Uri.parse('$baseUrl/element'),
       headers: {'Content-Type': 'application/json'},
       body: payload,
     );
 
-    if (first.statusCode == 200 || first.statusCode == 201) {
+    if (response.statusCode == 200 || response.statusCode == 201) {
       return;
     }
 
-    final fallback = await http.post(
-      Uri.parse('$baseUrl/messages/$relationCode'),
-      headers: {'Content-Type': 'application/json'},
-      body: payload,
-    );
-
-    if (fallback.statusCode != 200 && fallback.statusCode != 201) {
-      if (first.statusCode == 404 && fallback.statusCode == 404) {
-        throw Exception(
-          'API discussion indisponible sur le serveur (endpoints chat non trouves).',
-        );
-      }
-
-      throw Exception(
-        'Erreur envoi message: ${first.statusCode}/${fallback.statusCode}',
-      );
-    }
+    throw Exception('Erreur envoi message: ${response.statusCode}');
   }
 
-  List<Map<String, dynamic>> _parseMessagesPayload(String body) {
+  List<Map<String, dynamic>> _parseElementsPayload(String body) {
     final decoded = jsonDecode(body);
-    final List<dynamic> rawList =
-        decoded is List ? decoded : (decoded['messages'] as List<dynamic>? ?? []);
+    final List<dynamic> rawList = decoded is Map<String, dynamic>
+        ? (decoded['elements'] as List<dynamic>? ?? [])
+        : (decoded is List ? decoded : <dynamic>[]);
 
     return rawList.whereType<Map<String, dynamic>>().toList();
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'dart:convert';
 import '../services/pairing_service.dart';
 
 enum MessageType { texte, image, audio, fichier }
@@ -40,6 +41,7 @@ class _RelationScreenState extends State<RelationScreen> {
   String? _localDeviceId;
   bool _isLoadingRelation = true;
   bool _isSending = false;
+  DateTime? _lastLocalSendAt;
   final List<ChatMessage> _messages = <ChatMessage>[];
 
   @override
@@ -93,22 +95,31 @@ class _RelationScreenState extends State<RelationScreen> {
     if (!mounted) return;
     if (_activeRelationCode == null || _activeRelationCode!.isEmpty) return;
 
+    // Evite de re-consommer son propre message juste apres envoi (API read-once).
+    if (_lastLocalSendAt != null &&
+        DateTime.now().difference(_lastLocalSendAt!).inSeconds < 3) {
+      return;
+    }
+
     try {
-      final rawMessages = await _pairingService.fetchDiscussionMessages(
+      final rawElements = await _pairingService.fetchDiscussionMessages(
         _activeRelationCode!,
       );
       if (!mounted) return;
 
       final localId = _localDeviceId ?? '';
-      final mapped = rawMessages.map((raw) {
-        final senderId =
-            (raw['senderId'] ?? raw['deviceId'] ?? raw['userId'] ?? '')
-                .toString();
-        final content = (raw['content'] ?? raw['message'] ?? raw['text'] ?? '')
+      final mapped = rawElements.map((raw) {
+        final elementKey = (raw['key'] ?? 'MESSAGE').toString();
+        final value = (raw['value'] ?? '').toString();
+        final parsed = _parseElementValue(value);
+
+        final senderId = (parsed['senderId'] ?? '').toString();
+        final content = (parsed['content'] ?? value).toString();
+        final rawType = (parsed['type'] ?? _messageTypeFromKey(elementKey).name)
             .toString();
-        final rawType = (raw['type'] ?? 'texte').toString();
         final rawDate =
-            (raw['sentAt'] ?? raw['timestamp'] ?? raw['createdAt'])?.toString();
+            (parsed['sentAt'] ?? raw['creationDate'] ?? raw['createdAt'])
+                ?.toString();
 
         return ChatMessage(
           content: content,
@@ -119,15 +130,15 @@ class _RelationScreenState extends State<RelationScreen> {
           isMine: senderId == localId,
           senderId: senderId,
         );
-      }).toList()
+      }).where((m) => m.senderId != localId && m.content.isNotEmpty).toList()
         ..sort((a, b) => a.sentAt.compareTo(b.sentAt));
 
-      setState(() {
-        _messages
-          ..clear()
-          ..addAll(mapped);
-      });
-      _scrollToBottom();
+      if (mapped.isNotEmpty) {
+        setState(() {
+          _messages.addAll(mapped);
+        });
+        _scrollToBottom();
+      }
     } catch (_) {
       // On ignore les erreurs de sync periodique pour ne pas bloquer l'UI.
     }
@@ -151,15 +162,35 @@ class _RelationScreenState extends State<RelationScreen> {
     });
 
     try {
+      final payload = jsonEncode({
+        'senderId': _localDeviceId!,
+        'content': content,
+        'type': _messageTypeToApi(_selectedType),
+        'sentAt': DateTime.now().toUtc().toIso8601String(),
+      });
+
       await _pairingService.sendDiscussionMessage(
         relationCode: _activeRelationCode!,
         senderId: _localDeviceId!,
-        content: content,
-        type: _messageTypeToApi(_selectedType),
+        content: payload,
+        type: _messageKeyForType(_selectedType),
       );
 
+      final now = DateTime.now();
+      setState(() {
+        _messages.add(
+          ChatMessage(
+            content: content,
+            type: _selectedType,
+            sentAt: now,
+            isMine: true,
+            senderId: _localDeviceId!,
+          ),
+        );
+        _lastLocalSendAt = now;
+      });
       _messageController.clear();
-      await _refreshMessages();
+      _scrollToBottom();
     } catch (e) {
       if (!mounted) return;
       final message = e.toString().replaceFirst('Exception: ', '');
@@ -231,6 +262,20 @@ class _RelationScreenState extends State<RelationScreen> {
     }
   }
 
+  MessageType _messageTypeFromKey(String key) {
+    switch (key.toUpperCase()) {
+      case 'IMAGE':
+        return MessageType.image;
+      case 'AUDIO':
+        return MessageType.audio;
+      case 'FICHIER':
+      case 'FILE':
+        return MessageType.fichier;
+      default:
+        return MessageType.texte;
+    }
+  }
+
   String _messageTypeToApi(MessageType type) {
     switch (type) {
       case MessageType.texte:
@@ -242,6 +287,36 @@ class _RelationScreenState extends State<RelationScreen> {
       case MessageType.fichier:
         return 'fichier';
     }
+  }
+
+  String _messageKeyForType(MessageType type) {
+    switch (type) {
+      case MessageType.texte:
+        return 'MESSAGE';
+      case MessageType.image:
+        return 'IMAGE';
+      case MessageType.audio:
+        return 'AUDIO';
+      case MessageType.fichier:
+        return 'FICHIER';
+    }
+  }
+
+  Map<String, dynamic> _parseElementValue(String value) {
+    try {
+      final decoded = jsonDecode(value);
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+    } catch (_) {
+      // Value non-JSON: on garde un fallback texte brut.
+    }
+
+    return {
+      'content': value,
+      'type': 'texte',
+      'senderId': '',
+    };
   }
 
   Widget _buildMessageItem(ChatMessage message) {
