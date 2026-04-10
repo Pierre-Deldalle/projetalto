@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
-// Classe de la page d'accueil
+/// Écran d'accueil principal de l'application.
+/// Affiche un message de bienvenue et le logo de l'application.
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Création de la page d'accueil
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -20,7 +20,8 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 50),
-          // Logo de l'application
+          
+          // Logo officiel Alto
           Image.asset(
             'assets/images/logoComplet.png',
             width: 200,
