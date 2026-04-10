@@ -6,16 +6,20 @@ import 'package:flutter/material.dart';
 class HomeFloatingButton extends StatelessWidget {
   /// Callback déclenché lors du tap sur le bouton.
   final VoidCallback onPressed;
+  
+  /// Position verticale du bouton depuis le bas (par défaut 20).
+  final double bottom;
 
   const HomeFloatingButton({
     super.key,
     required this.onPressed,
+    this.bottom = 20, // Valeur par défaut
   });
 
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      bottom: 20,
+      bottom: bottom,
       right: 20,
       child: GestureDetector(
         onTap: onPressed,
