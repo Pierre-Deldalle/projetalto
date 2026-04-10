@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
-// Classe d'un bouton réutilisable et personnalisable pour toute l'appli
+/// Composant bouton personnalisé réutilisable dans toute l'application.
+/// Il permet de maintenir une cohérence visuelle sur tous les boutons d'action.
 class PrimaryButton extends StatelessWidget {
-  // Attributs
+  // Attributs de personnalisation
   final Color? backgroundColor;
   final Color? foregroundColor;
   final double width;
@@ -11,37 +12,43 @@ class PrimaryButton extends StatelessWidget {
   final VoidCallback? onPressed;
 
   const PrimaryButton({
-    // Paramètres nécessaires à la création du bouton
     super.key,
-    // Couleurs par défaut
+    // Configuration par défaut (Bleu accentué, texte noir)
     this.backgroundColor = Colors.blueAccent,
     this.foregroundColor = Colors.black,
     required this.width,
     required this.height,
     required this.text,
-    // Fonction décrivant l'action du bouton à passer en paramètre
     this.onPressed,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Création du ElevatedButton
     return ElevatedButton(
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
-        // Couleur du fond
+        // Fond du bouton
         backgroundColor: backgroundColor,
-        // Couleur du texte ou autre à l'intérieur
+        // Couleur du texte ou de l'icône interne
         foregroundColor: foregroundColor,
         shadowColor: Colors.black,
-        // Taille de l'ombre
+        
+        // Ombre portée
         elevation: 5,
+        
+        // Dimensions minimales
         minimumSize: Size(width, height),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        // Border radius permettant de toujours avoir des arcs de cerlcles sur les côtés
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(height/2)),
+        
+        // Forme arrondie (calculée pour être une demi-hauteur -> bords arrondis parfaits)
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(height / 2),
+        ),
       ),
-      child: Text(text),
+      child: Text(
+        text,
+        style: const TextStyle(fontWeight: FontWeight.bold),
+      ),
     );
   }
 }

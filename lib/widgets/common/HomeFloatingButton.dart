@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 
-// Classe du bouton Home
+/// Bouton flottant de retour à l'accueil.
+/// Conçu pour être utilisé dans un Stack ou un Scaffold, il offre une navigation
+/// rapide vers la page d'accueil avec une esthétique cohérente.
 class HomeFloatingButton extends StatelessWidget {
-  // Attributs
+  /// Callback déclenché lors du tap sur le bouton.
   final VoidCallback onPressed;
 
   const HomeFloatingButton({
-    // Paramètres
     super.key,
     required this.onPressed,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Création du HomeFloatingButton
     return Positioned(
       bottom: 20,
       right: 20,
@@ -25,10 +25,12 @@ class HomeFloatingButton extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: Colors.lightBlue,
+            // Ombre diffuse pour donner un effet de profondeur
             boxShadow: [
               BoxShadow(
-                color: Colors.lightBlue.withOpacity(0.6),
-                blurRadius: 12,
+                color: Colors.lightBlue.withOpacity(0.4),
+                blurRadius: 15,
+                spreadRadius: 2,
               ),
             ],
           ),
