@@ -13,30 +13,30 @@ void main() {
 }
 
 /// Configuration du routage avec GoRouter.
-/// Utilise un ShellRoute pour conserver le Footer personnalisé sur tous les écrans.
 final GoRouter _router = GoRouter(
   initialLocation: '/',
   routes: [
     ShellRoute(
       builder: (context, state, child) {
-        // Détermine si nous sommes sur la page d'accueil pour afficher le bouton flottant
-        final bool isHome = state.uri.path == '/';
+        final String location = state.uri.path;
+        final bool isHome = location == '/';
+        final bool isRelation = location == '/relation';
 
         return Scaffold(
           backgroundColor: Colors.black,
           body: Stack(
             children: [
-              // L'écran actuel
               child,
 
-              // Le HomeFloatingButton apparaît uniquement hors de l'accueil
+              // HomeFloatingButton positionné dynamiquement pour éviter les chevauchements
               if (!isHome)
                 HomeFloatingButton(
                   onPressed: () => context.go('/'),
+                  // Si on est sur la page de discussion, on remonte le bouton (80 au lieu de 20)
+                  bottom: isRelation ? 85 : 20,
                 ),
             ],
           ),
-          // Rétablissement du Footer personnalisé avec ses paramètres de navigation
           bottomNavigationBar: FooterWidget(
             onQrCode: () => context.go('/init_pairing'),
             onScanner: () => context.go('/scan_pairing'),
@@ -71,7 +71,6 @@ final GoRouter _router = GoRouter(
   ],
 );
 
-/// Racine de l'application.
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
