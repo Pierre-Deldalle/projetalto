@@ -52,7 +52,12 @@ final GoRouter _router = GoRouter(
         ),
         GoRoute(
           path: '/relation',
-          builder: (context, state) => const RelationScreen(),
+          builder: (context, state) => RelationScreen(
+            initialLocalRelationCode:
+                state.uri.queryParameters['localCode'] ??
+                state.uri.queryParameters['relationCode'],
+            initialRemoteRelationCode: state.uri.queryParameters['remoteCode'],
+          ),
         ),
       ],
     ),

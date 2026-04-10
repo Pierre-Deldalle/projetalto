@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/pairing_service.dart';
 
@@ -26,8 +28,10 @@ class _ScanPairingScreenState extends State<ScanPairingScreen> {
       controller.stop();
 
       final relationCodeB = _pairingService.generateRelationCode();
-      final publicKeyB =
-          "publicKey_dummy_${DateTime.now().millisecondsSinceEpoch}";
+      final publicKeyB = await _pairingService.getOrCreateDeviceId();
+
+      // Initialise aussi le code local du scanner avant de completer la liaison.
+      await _pairingService.initPairing(relationCodeB);
 
       await _pairingService.completePairing(
         relationCodeA: relationCodeA,
@@ -35,19 +39,39 @@ class _ScanPairingScreenState extends State<ScanPairingScreen> {
         publicKeyB: publicKeyB,
       );
 
+      await _pairingService.saveLastRelationCode(relationCodeA);
+      await _pairingService.saveDiscussionContext(
+        localRelationCode: relationCodeB,
+        remoteRelationCode: relationCodeA,
+      );
+
+      // Donne a l'appareil initiateur le code de retour a utiliser pour nous envoyer.
+      await _pairingService.sendDiscussionMessage(
+        relationCode: relationCodeA,
+        senderId: publicKeyB,
+        type: 'CHANNEL',
+        content: jsonEncode({
+          'replyCode': relationCodeB,
+          'senderId': publicKeyB,
+        }),
+      );
+
       if (!mounted) return;
 
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (_) => AlertDialog(
-          title: const Text("Pairing réussi"),
+        builder: (dialogContext) => AlertDialog(
+          title: const Text("Connexion réussie !"),
           content: const Text("Les appareils sont maintenant connectés."),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
-                Navigator.pop(context);
+                Navigator.of(dialogContext).pop();
+                if (!mounted) return;
+                context.go(
+                  '/relation?localCode=${Uri.encodeComponent(relationCodeB)}&remoteCode=${Uri.encodeComponent(relationCodeA)}',
+                );
               },
               child: const Text("OK"),
             )
@@ -65,7 +89,7 @@ class _ScanPairingScreenState extends State<ScanPairingScreen> {
         context: context,
         builder: (_) => AlertDialog(
           title: const Text("Erreur"),
-          content: Text("Échec du pairing : $e"),
+          content: Text("Échec de la connexion : $e"),
           actions: [
             TextButton(
               onPressed: () {
